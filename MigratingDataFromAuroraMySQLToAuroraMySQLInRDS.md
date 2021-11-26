@@ -1,16 +1,16 @@
-Migrating data between two Aurora MySQL instances in RDS using AWS Database Migration Service (DMS)
+# Migrating data between two Aurora MySQL instances in RDS using AWS Database Migration Service (DMS)
 
 As a prerequisite for migrating from a MySQL Aurora database, we need to apply a different binary logging format to the source RDS cluster that the database instance is a part of. To do this we need to first create a parameter group using the default.aurora5.6 cluster parameter group as a template.
 
-![image](https://user-images.githubusercontent.com/70777733/143591897-7192bb1d-13d2-4dbb-a3eb-7a147b5a3fa3.png)
+![image](https://user-images.githubusercontent.com/70777733/143592572-b3d1ef25-99f6-47be-848e-32c8db369d6a.png)
 
 Here I have called it “dms-test-parameter-group”. Within the parameter group you can search for the parameter “binlog_format” which we will change from “OFF” to “ROW”.
 
-![image](https://user-images.githubusercontent.com/70777733/143591907-08af1b29-cedf-496b-b1fe-e1e1b8cb205f.png)
+![image](https://user-images.githubusercontent.com/70777733/143592672-975a7219-f3c9-4d67-955c-d4f0b4c7d02a.png)
 
 Apply this to the source database cluster and make sure to reboot the instance for the full change to take effect.
 
-![image](https://user-images.githubusercontent.com/70777733/143591920-4cdac1da-5f37-43e8-8a4b-f3cb5ac00498.png)
+![image](https://user-images.githubusercontent.com/70777733/143592736-56512262-6cf7-4a31-8770-3fe1ae00487f.png)
 
 Now to create the parts needed for the database migration. Go to AWS’ Database Migration Service (DMS) and create the DMS replication instance. 
 Because we are using this for initial test purposes, it will be the smallest instance size possible which is dms.t3.micro. This instance will also have most configurations set to the default options, such as having the latest DMS engine version, 50 GB of storage etc. 
@@ -25,7 +25,7 @@ Now that our source and target endpoints are in place, we can create the migrati
 To preserve columns that auto-increment, we have to export the schema from the source database into the target database. DMS tries its best to migrate the data and the schema structure, including primary keys and constraints, but sometimes this means that certain details are missed out. Exporting the current schema(s) to CREATE statements can help overcome any issues that arise from this. 
 Without copying the schema(s) across first, auto-increment columns may restart meaning that errors can arise from conflicts especially on values in these fields that may have a unique constraint. Exporting and importing schemas is very easy for this case as we have two tables but can become more complex with schemas with more tables. MySQL Workbench provides an easy right click option to make CREATE statements out of schemas and tables.
  
-![image](https://user-images.githubusercontent.com/70777733/143591946-cf99e7b5-63fd-4d13-8bb8-d0a11250f58f.png)
+![image](https://user-images.githubusercontent.com/70777733/143592790-ab03ac1c-9997-4cb0-9e65-0848d06c3e15.png)
 
 Now that we have already created the tables on the target database, we want to only truncate them as our migration task preparation mode. Dropping the tables at this point will make the last step pointless and subject us to the issues previously mentioned. We don’t want to stop the task as we don’t have cached changes to apply, we also want to use full LOB mode with the default chunk size. Although we do not have any columns with LOBs in this migration, this will be a good default going forward. Enable validation and CloudWatch Logs and leave the rest of the options as default until the “Table mapping” section. 
 
@@ -41,7 +41,7 @@ Put these relevant values into the configuration of the premigration assessment 
 
 The premigration assessment report can be viewed like below, it should have passed all the checks so we are ready to run the migration task.
 
-![image](https://user-images.githubusercontent.com/70777733/143591981-7ffde78a-9c4d-4599-9284-896d1d2dc5a9.png)
+![image](https://user-images.githubusercontent.com/70777733/143592936-413e56d2-e62c-48c1-82af-6afc0f8678e7.png)
 
 Start the migration task, it will update you with the status and even list the statistics for UPDATEs, INSERTs etc. on the source database and when they are complete on the target.
 
